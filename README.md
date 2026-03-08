@@ -17,27 +17,8 @@ eip = ec2.Eip('nat-eip', domain="vpc")
 
 ---
 
-### `error: unable to validate credentials`
 
-**Cause:** AWS credentials are missing or expired in your environment.
 
-**Fix:** Re-configure credentials:
-
-```bash
-aws configure
-# or export directly
-export AWS_ACCESS_KEY_ID=your_key
-export AWS_SECRET_ACCESS_KEY=your_secret
-export AWS_DEFAULT_REGION=us-east-1
-```
-
-Verify they work:
-
-```bash
-aws sts get-caller-identity
-```
-
----
 
 ### `pulumi:pulumi:Stack ... create error: Program failed with an unhandled exception`
 
@@ -51,23 +32,6 @@ aws sts get-caller-identity
 
 ---
 
-### `[remote rejected] master (refusing to delete the current branch)`
-
-**Cause:** You're trying to delete the default branch on GitHub/GitLab.
-
-**Fix:** Change the default branch first in your repo settings:
-
-```
-GitHub: Settings → Branches → Default Branch → switch to main → Update
-```
-
-Then re-run:
-
-```bash
-git push origin --delete master
-```
-
----
 
 ### `Http response code: NotFound from 'POST https://api.github.com/actions/runner-registration'`
 
