@@ -1,92 +1,105 @@
- # AWS Python S3 Bucket Pulumi Template
 
- A minimal Pulumi template for provisioning a single AWS S3 bucket using Python.
+## Troubleshooting
 
- ## Overview
+### `TypeError: Eip._internal_init() got an unexpected keyword argument 'vpc'`
 
- This template provisions an S3 bucket (`pulumi_aws.s3.BucketV2`) in your AWS account and exports its ID as an output. It’s an ideal starting point when:
-  - You want to learn Pulumi with AWS in Python.
-  - You need a barebones S3 bucket deployment to build upon.
-  - You prefer a minimal template without extra dependencies.
+**Cause:** The `vpc=True` argument was removed in `pulumi-aws` v7.
 
- ## Prerequisites
+**Fix:** Replace `vpc=True` with `domain="vpc"`:
 
- - An AWS account with permissions to create S3 buckets.
- - AWS credentials configured in your environment (for example via AWS CLI or environment variables).
- - Python 3.6 or later installed.
- - Pulumi CLI already installed and logged in.
+```python
+# Before (broken in v7+)
+eip = ec2.Eip('nat-eip', vpc=True)
 
- ## Getting Started
+# After
+eip = ec2.Eip('nat-eip', domain="vpc")
+```
 
- 1. Generate a new project from this template:
-    ```bash
-    pulumi new aws-python
-    ```
- 2. Follow the prompts to set your project name and AWS region (default: `us-east-1`).
- 3. Change into your project directory:
-    ```bash
-    cd <project-name>
-    ```
- 4. Preview the planned changes:
-    ```bash
-    pulumi preview
-    ```
- 5. Deploy the stack:
-    ```bash
-    pulumi up
-    ```
- 6. Tear down when finished:
-    ```bash
-    pulumi destroy
-    ```
+---
 
- ## Project Layout
+### `error: unable to validate credentials`
 
- After running `pulumi new`, your directory will look like:
- ```
- ├── __main__.py         # Entry point of the Pulumi program
- ├── Pulumi.yaml         # Project metadata and template configuration
- ├── requirements.txt    # Python dependencies
- └── Pulumi.<stack>.yaml # Stack-specific configuration (e.g., Pulumi.dev.yaml)
- ```
+**Cause:** AWS credentials are missing or expired in your environment.
 
- ## Configuration
+**Fix:** Re-configure credentials:
 
- This template defines the following config value:
+```bash
+aws configure
+# or export directly
+export AWS_ACCESS_KEY_ID=your_key
+export AWS_SECRET_ACCESS_KEY=your_secret
+export AWS_DEFAULT_REGION=us-east-1
+```
 
- - `aws:region` (string)
-   The AWS region to deploy resources into.
-   Default: `us-east-1`
+Verify they work:
 
- View or update configuration with:
- ```bash
- pulumi config get aws:region
- pulumi config set aws:region us-west-2
- ```
+```bash
+aws sts get-caller-identity
+```
 
- ## Outputs
+---
 
- Once deployed, the stack exports:
+### `pulumi:pulumi:Stack ... create error: Program failed with an unhandled exception`
 
- - `bucket_name` — the ID of the created S3 bucket.
+**Cause:** A Python runtime error in `__main__.py` (e.g., wrong argument, missing import, or API change).
 
- Retrieve outputs with:
- ```bash
- pulumi stack output bucket_name
- ```
+**Fix:** Read the full traceback in the diagnostics output — it will point to the exact line and error. Common causes:
 
- ## Next Steps
+- Outdated argument names (check the [Pulumi AWS changelog](https://github.com/pulumi/pulumi-aws/blob/master/CHANGELOG.md))
+- Missing `pulumi_aws` version pinned in `requirements.txt`
+- Using deprecated resource classes (e.g., `s3.Bucket` instead of `s3.BucketV2`)
 
- - Customize `__main__.py` to add or configure additional resources.
- - Explore the Pulumi AWS SDK: https://www.pulumi.com/registry/packages/aws/
- - Break your infrastructure into modules for better organization.
- - Integrate into CI/CD pipelines for automated deployments.
+---
 
- ## Help and Community
+### `[remote rejected] master (refusing to delete the current branch)`
 
- If you have questions or need assistance:
- - Pulumi Documentation: https://www.pulumi.com/docs/
- - Community Slack: https://slack.pulumi.com/
- - GitHub Issues: https://github.com/pulumi/pulumi/issues
+**Cause:** You're trying to delete the default branch on GitHub/GitLab.
 
- Contributions and feedback are always welcome!
+**Fix:** Change the default branch first in your repo settings:
+
+```
+GitHub: Settings → Branches → Default Branch → switch to main → Update
+```
+
+Then re-run:
+
+```bash
+git push origin --delete master
+```
+
+---
+
+### `Http response code: NotFound from 'POST https://api.github.com/actions/runner-registration'`
+
+**Cause:** The GitHub Actions runner registration token is expired or invalid. Tokens expire within ~1 hour of generation.
+
+**Fix:** Dynamically fetch a fresh token in your workflow instead of hardcoding it:
+
+```bash
+TOKEN=$(curl -s -X POST \
+  -H "Authorization: token $GH_PAT" \
+  -H "Accept: application/vnd.github+json" \
+  https://api.github.com/repos/<owner>/<repo>/actions/runners/registration-token \
+  | jq -r .token)
+
+./config.sh --url https://github.com/<owner>/<repo> --token $TOKEN --unattended
+```
+
+Store your PAT (classic, with `repo` scope) as a secret named `GH_PAT`.
+
+---
+
+### `sudo: ./svc.sh: command not found`
+
+**Cause:** The `svc.sh` script is being called from the wrong directory. It only exists inside the `actions-runner/` folder.
+
+**Fix:** Make sure you `cd` into the runner directory before calling it:
+
+```bash
+cd ~/actions-runner
+sudo ./svc.sh install
+sudo ./svc.sh start
+```
+
+---
+
